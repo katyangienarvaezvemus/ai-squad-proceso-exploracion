@@ -1,0 +1,1079 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Proceso de Exploración — AI Squad</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700;800&family=Barlow+Condensed:wght@500;600;700;800&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg-base:#0c0c0c; --bg-surface:#141414; --bg-card:#1a1a1a;
+    --border-dim:#1e1e1e; --border-mid:#2a2a2a; --border-hi:#3a3a3a;
+    --lime:#8cc63f; --lime-glow:rgba(140,198,63,.3); --lime-muted:rgba(140,198,63,.1);
+    --teal:#0fd4b4; --purple:#9d6ff0; --orange:#e89020;
+    --orange-muted:rgba(232,144,32,.12); --blue:#4a8fea; --red:#e05050;
+    --txt-hi:#f0f0f0; --txt-mid:#888; --txt-dim:#4a4a4a;
+  }
+  html,body { background:var(--bg-base); font-family:'Barlow',sans-serif; height:100%; overflow:hidden; color:var(--txt-hi); }
+
+  /* TOP BAR */
+  #topbar { position:fixed; top:0; left:0; right:0; z-index:300; height:52px; background:var(--bg-surface); border-bottom:1px solid var(--border-mid); display:flex; align-items:center; }
+  .tb-brand { display:flex; align-items:center; gap:10px; padding:0 20px; border-right:1px solid var(--border-mid); height:100%; flex-shrink:0; }
+  .tb-brand-icon { width:30px; height:30px; border-radius:8px; background:var(--lime-muted); border:1px solid var(--lime-glow); display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .tb-brand-title { font-size:13px; font-weight:800; color:var(--txt-hi); }
+  .tb-brand-title span { color:var(--lime); }
+  .tb-brand-sub { font-size:9px; color:var(--txt-mid); letter-spacing:.06em; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
+  .tb-center { display:flex; align-items:center; gap:8px; padding:0 18px; border-right:1px solid var(--border-mid); height:100%; }
+  .tb-dot { width:6px; height:6px; border-radius:50%; background:var(--lime); animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .tb-process { font-size:11px; font-weight:700; color:var(--lime); letter-spacing:.05em; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
+  .tb-hint { font-size:10px; color:var(--txt-dim); }
+  .tb-sep-dot { color:var(--txt-dim); }
+  .tb-right { margin-left:auto; display:flex; gap:6px; align-items:center; padding-right:18px; }
+  .tb-badge { background:var(--bg-card); border:1px solid var(--border-mid); border-radius:6px; padding:4px 10px; font-size:10px; color:var(--txt-mid); font-family:'Barlow Condensed',sans-serif; font-weight:700; letter-spacing:.08em; }
+  .tb-vsep { width:1px; height:24px; background:var(--border-mid); }
+  .tb-btn { background:var(--bg-card); border:1px solid var(--border-mid); border-radius:7px; padding:5px 12px; font-size:11px; color:var(--txt-mid); font-weight:600; cursor:pointer; transition:all .15s; font-family:'Barlow',sans-serif; }
+  .tb-btn:hover { background:var(--border-mid); color:var(--txt-hi); }
+
+  /* CANVAS */
+  #canvas-wrap { position:fixed; top:52px; left:0; right:0; bottom:0; overflow:auto; cursor:grab; user-select:none; background:var(--bg-base); background-image:radial-gradient(circle,#1c1c1c 1px,transparent 1px); background-size:24px 24px; }
+  #canvas-wrap:active { cursor:grabbing; }
+  #bpmn-canvas { position:relative; width:3500px; height:1082px; transform-origin:top left; margin:28px; }
+
+  /* SWIM-LANE TABLE */
+  .bpmn-table { position:absolute; top:0; left:0; width:3500px; height:1082px; background:var(--bg-surface); border:1px solid var(--border-mid); border-radius:10px; overflow:hidden; box-shadow:0 8px 60px rgba(0,0,0,.75); }
+
+  /* TITLE ROW */
+  .title-row { position:absolute; top:0; left:0; right:0; height:48px; background:#111; border-bottom:2px solid #333; display:flex; align-items:stretch; }
+  .title-actor-cell { width:140px; min-width:140px; height:48px; background:#111; border-right:1px solid var(--border-mid); display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:700; color:#555; letter-spacing:.14em; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; }
+  .phase-header { flex:1; height:48px; display:flex; align-items:center; justify-content:center; background:#111; border-right:1px solid #222; font-size:8.5px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; text-align:center; line-height:1.2; padding:0 8px; position:relative; }
+  .phase-header::after { content:''; position:absolute; bottom:0; left:15%; right:15%; height:2px; border-radius:2px 2px 0 0; }
+  .phase-header:last-child { border-right:none; }
+  .ph-1{color:#8cc63f;} .ph-1::after{background:#8cc63f; box-shadow:0 0 8px rgba(140,198,63,.3);}
+  .ph-2{color:#4a8fea;} .ph-2::after{background:#4a8fea;}
+  .ph-3{color:#0fd4b4;} .ph-3::after{background:#0fd4b4;}
+  .ph-4{color:#9d6ff0;} .ph-4::after{background:#9d6ff0;}
+  .ph-5{color:#e89020;} .ph-5::after{background:#e89020;}
+  .ph-6{color:#c8a060;} .ph-6::after{background:#c8a060;}
+
+  /* GROUP BANNER */
+  .group-banner { position:absolute; left:0; right:0; background:#3a6010; border-bottom:1px solid #5a9020; display:flex; align-items:center; padding:0 16px; font-size:9.5px; font-weight:800; color:#b8e060; letter-spacing:.12em; text-transform:uppercase; font-family:'Barlow Condensed',sans-serif; z-index:3; }
+
+  /* LANE ROWS */
+  .lane-row { position:absolute; left:0; right:0; border-bottom:1px solid #1e1e1e; display:flex; }
+  .lane-label { width:140px; min-width:140px; background:#0e0e0e; border-right:1px solid var(--border-mid); display:flex; align-items:center; justify-content:center; padding:6px 8px; position:relative; }
+  .lane-label::before { content:''; position:absolute; left:0; top:15%; bottom:15%; width:3px; border-radius:0 3px 3px 0; }
+  .lane-label span { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; text-align:center; line-height:1.4; font-family:'Barlow Condensed',sans-serif; word-break:break-word; }
+  .lane-body { flex:1; position:relative; }
+
+  .lane-innmgr .lane-label::before{background:#4a8fea; box-shadow:2px 0 8px rgba(74,143,234,.25);}
+  .lane-innmgr .lane-label span{color:#4a8fea;}
+  .lane-gov .lane-label::before{background:#9d6ff0; box-shadow:2px 0 8px rgba(157,111,240,.25);}
+  .lane-gov .lane-label span{color:#9d6ff0;}
+  .lane-vmo .lane-label::before{background:#e89020; box-shadow:2px 0 8px rgba(232,144,32,.25);}
+  .lane-vmo .lane-label span{color:#e89020;}
+  .lane-squad .lane-label::before{background:#0fd4b4; box-shadow:2px 0 8px rgba(15,212,180,.25);}
+  .lane-squad .lane-label span{color:#0fd4b4;}
+  .lane-areas .lane-label::before{background:#e05050; box-shadow:2px 0 8px rgba(224,80,80,.25);}
+  .lane-areas .lane-label span{color:#e05050;}
+
+  .col-sep { position:absolute; top:0; bottom:0; width:1px; background:#1e1e1e; z-index:2; pointer-events:none; }
+
+  /* BPMN ELEMENTS */
+  .bpmn-event { position:absolute; width:36px; height:36px; border-radius:50%; z-index:10; }
+  .bpmn-start { background:rgba(232,144,32,.15); border:2.5px solid #e89020; box-shadow:0 0 14px rgba(232,144,32,.35); }
+  .bpmn-start::after { content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:12px; height:12px; border-radius:50%; background:#e89020; box-shadow:0 0 6px #e89020; }
+  .bpmn-end { background:rgba(224,80,80,.2); border:3px solid #e05050; box-shadow:0 0 14px rgba(224,80,80,.35); }
+  .bpmn-end::after { content:''; position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:14px; height:14px; border-radius:50%; background:#e05050; }
+
+  .bpmn-task { position:absolute; background:#1b1b1b; border:1px solid #303030; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:5px 6px; cursor:pointer; z-index:10; transition:all .18s; text-align:center; box-shadow:0 2px 8px rgba(0,0,0,.5); }
+  .bpmn-task:hover { transform:translateY(-2px); z-index:20; background:#222; box-shadow:0 6px 20px rgba(0,0,0,.7); }
+  .bpmn-task .t-num { font-size:7px; font-weight:800; letter-spacing:.04em; margin-bottom:2px; font-family:'Barlow Condensed',sans-serif; }
+  .bpmn-task .t-txt { font-size:7.5px; font-weight:500; color:#ccc; line-height:1.3; }
+
+  .t-innmgr{border-left:2.5px solid #4a8fea;} .t-innmgr .t-num{color:#4a8fea;}
+  .t-gov{border-left:2.5px solid #9d6ff0;} .t-gov .t-num{color:#9d6ff0;}
+  .t-vmo{border-left:2.5px solid #e89020;} .t-vmo .t-num{color:#e89020;}
+  .t-squad{border-left:2.5px solid #0fd4b4;} .t-squad .t-num{color:#0fd4b4;}
+  .t-areas{border-left:2.5px solid #e05050;} .t-areas .t-num{color:#e05050;}
+
+  .bpmn-gw { position:absolute; z-index:10; cursor:pointer; transition:all .18s; }
+  .bpmn-gw .gw-diamond { width:52px; height:52px; background:rgba(232,144,32,.1); border:1.5px solid rgba(232,144,32,.6); transform:rotate(45deg); transition:all .18s; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+  .bpmn-gw:hover .gw-diamond { background:var(--orange-muted); border-color:#e89020; }
+  .gw-txt { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:56px; font-size:5.8px; font-weight:700; color:#e89020; text-align:center; line-height:1.2; font-family:'Barlow Condensed',sans-serif; letter-spacing:.02em; pointer-events:none; z-index:12; word-break:break-word; }
+
+  .flow-lbl { position:absolute; font-size:8px; font-weight:700; color:#555; font-family:'Barlow',sans-serif; pointer-events:none; z-index:8; }
+
+  /* Tooltip */
+  #tooltip { position:fixed; z-index:9999; pointer-events:none; opacity:0; transition:opacity .2s; }
+  #tooltip.show { opacity:1; }
+  #tooltip .tt-inner { background:var(--bg-card); border:1px solid var(--border-hi); border-radius:7px; padding:6px 12px; font-size:9px; color:var(--txt-mid); white-space:nowrap; box-shadow:0 4px 20px rgba(0,0,0,.7); }
+
+  /* Modal */
+  #modal-overlay { display:none; position:fixed; inset:0; z-index:500; background:rgba(0,0,0,.88); align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(8px); }
+  #modal { background:var(--bg-card); border:1px solid var(--border-mid); border-radius:14px; width:100%; max-width:520px; max-height:88vh; overflow-y:auto; animation:mIn .22s cubic-bezier(.16,1,.3,1); box-shadow:0 32px 80px rgba(0,0,0,.8); }
+  @keyframes mIn { from{opacity:0;transform:translateY(14px) scale(.98)} to{opacity:1;transform:none} }
+  .m-hdr { padding:18px 20px 14px; border-bottom:1px solid var(--border-mid); display:flex; gap:12px; align-items:flex-start; }
+  .m-accent { width:4px; border-radius:4px; flex-shrink:0; align-self:stretch; }
+  .m-htxt { flex:1; }
+  .m-phase { font-size:8px; color:var(--txt-dim); letter-spacing:.1em; text-transform:uppercase; margin-bottom:3px; font-weight:700; font-family:'Barlow Condensed',sans-serif; }
+  .m-num { font-size:9px; color:var(--txt-dim); margin-bottom:2px; }
+  .m-title { font-size:14px; font-weight:700; color:var(--txt-hi); line-height:1.3; }
+  .m-close { background:var(--bg-surface); border:1px solid var(--border-mid); border-radius:7px; color:var(--txt-mid); cursor:pointer; font-size:13px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:all .15s; }
+  .m-close:hover { background:rgba(224,80,80,.15); color:#e05050; border-color:rgba(224,80,80,.4); }
+  .m-body { padding:16px 20px 22px; display:flex; flex-direction:column; gap:14px; }
+  .m-sec { font-size:8px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--txt-dim); display:flex; align-items:center; gap:8px; margin-bottom:6px; font-family:'Barlow Condensed',sans-serif; }
+  .m-sec::after { content:''; flex:1; height:1px; background:var(--border-dim); }
+  .m-resp { display:inline-flex; align-items:center; gap:8px; background:var(--bg-surface); border:1px solid var(--border-mid); border-radius:8px; padding:6px 12px; font-size:11px; color:var(--txt-hi); font-weight:500; }
+  .m-list { list-style:none; display:flex; flex-direction:column; gap:4px; }
+  .m-list li { display:flex; gap:8px; align-items:flex-start; font-size:10.5px; color:var(--txt-mid); line-height:1.5; }
+  .m-bullet { flex-shrink:0; }
+
+  /* EDIT UI */
+  .m-footer { padding:12px 20px 16px; border-top:1px solid var(--border-dim); display:flex; justify-content:flex-end; }
+  .m-edit-main-btn { background:var(--bg-surface); border:1px solid var(--border-mid); border-radius:8px; padding:7px 18px; font-size:11px; font-weight:700; color:var(--txt-mid); cursor:pointer; font-family:'Barlow',sans-serif; letter-spacing:.04em; transition:all .18s; display:flex; align-items:center; gap:6px; }
+  .m-edit-main-btn:hover { background:rgba(74,143,234,.12); border-color:rgba(74,143,234,.5); color:#4a8fea; }
+  /* Edit form */
+  .edit-field { display:flex; flex-direction:column; gap:5px; }
+  .edit-label { font-size:8px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--txt-dim); font-family:'Barlow Condensed',sans-serif; }
+  .edit-label-hint { font-size:8px; color:#444; font-style:italic; margin-left:6px; text-transform:none; letter-spacing:0; }
+  .edit-area { width:100%; background:#111; border:1px solid var(--border-hi); border-radius:6px; padding:8px 10px; font-size:10.5px; color:#ddd; font-family:'Barlow',sans-serif; line-height:1.5; resize:vertical; box-sizing:border-box; }
+  .edit-area:focus { outline:none; border-color:#4a8fea; box-shadow:0 0 0 2px rgba(74,143,234,.12); }
+  .edit-input { width:100%; background:#111; border:1px solid var(--border-hi); border-radius:6px; padding:7px 10px; font-size:10.5px; color:#ddd; font-family:'Barlow',sans-serif; box-sizing:border-box; }
+  .edit-input:focus { outline:none; border-color:#4a8fea; }
+  .edit-form-actions { display:flex; gap:8px; justify-content:flex-end; padding-top:4px; }
+  .edit-save { background:rgba(15,212,180,.15); border:1px solid rgba(15,212,180,.4); border-radius:7px; padding:6px 16px; font-size:11px; font-weight:700; color:#0fd4b4; cursor:pointer; font-family:'Barlow',sans-serif; transition:all .15s; }
+  .edit-save:hover { background:rgba(15,212,180,.25); border-color:#0fd4b4; }
+  .edit-discard { background:var(--bg-surface); border:1px solid var(--border-mid); border-radius:7px; padding:6px 16px; font-size:11px; font-weight:700; color:var(--txt-mid); cursor:pointer; font-family:'Barlow',sans-serif; transition:all .15s; }
+  .edit-discard:hover { background:var(--border-mid); color:var(--txt-hi); }
+  /* Link UI in outputs */
+  .out-item { display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--txt-mid); line-height:1.5; padding:2px 0; }
+  .out-link { color:#4a8fea; text-decoration:none; font-size:10.5px; }
+  .out-link:hover { text-decoration:underline; }
+  .out-link-btn { background:none; border:none; cursor:pointer; font-size:10px; color:#4a8fea; opacity:.55; padding:1px 5px; border-radius:3px; transition:all .15s; }
+  .out-link-btn:hover { opacity:1; background:rgba(74,143,234,.12); }
+  .link-row { display:flex; align-items:center; gap:6px; margin-top:3px; }
+  .link-input { flex:1; background:#111; border:1px solid var(--border-hi); border-radius:5px; padding:5px 8px; font-size:10px; color:#ddd; font-family:'Barlow',sans-serif; }
+  .link-input:focus { outline:none; border-color:#4a8fea; }
+  .link-input::placeholder { color:#444; }
+  .link-save-btn { background:rgba(15,212,180,.12); border:1px solid rgba(15,212,180,.3); border-radius:5px; padding:4px 9px; font-size:9px; font-weight:700; color:#0fd4b4; cursor:pointer; white-space:nowrap; transition:all .15s; }
+  .link-save-btn:hover { background:rgba(15,212,180,.22); }
+  .link-rm-btn { background:rgba(224,80,80,.1); border:1px solid rgba(224,80,80,.25); border-radius:5px; padding:4px 9px; font-size:9px; font-weight:700; color:#e05050; cursor:pointer; white-space:nowrap; transition:all .15s; }
+  .link-rm-btn:hover { background:rgba(224,80,80,.2); }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="tb-brand">
+    <div class="tb-brand-icon">⚡</div>
+    <div>
+      <div class="tb-brand-title">Business <span>IT</span></div>
+      <div class="tb-brand-sub">Grupo Business</div>
+    </div>
+  </div>
+  <div class="tb-center">
+    <div class="tb-dot"></div>
+    <span class="tb-process">Proceso de Exploración · AI Squad</span>
+    <span class="tb-sep-dot">·</span>
+    <span class="tb-hint">Clic en actividad para ver detalle · Arrastra para navegar</span>
+  </div>
+  <div class="tb-right">
+    <span class="tb-badge">BIT · Q2 2026</span>
+    <div class="tb-vsep"></div>
+    <button class="tb-btn" onclick="zoom(1.15)">＋</button>
+    <button class="tb-btn" onclick="zoom(0.87)">－</button>
+    <a href="https://beducacion-my.sharepoint.com/:f:/g/personal/johnny_ordonez_grupobusiness_it/IgCKu4Ebvv25RoQVy88ANMrzAQc4c_USTlAtQshopp7HUOc?e=fwk2Sq" target="_blank" rel="noopener" class="tb-btn" style="text-decoration:none;display:flex;align-items:center;gap:5px;color:#8cc63f;border-color:rgba(140,198,63,.35);background:rgba(140,198,63,.07);">🗂 Repositorio</a>
+  </div>
+</div>
+
+<div id="canvas-wrap">
+<div id="bpmn-canvas">
+
+<!--
+  CANVAS: 3500 × 1000px
+  Label col: 140px
+  Phase columns (x from 0):
+    Ph1: 140–680   (540px)
+    Ph2: 680–1100  (420px)
+    Ph3: 1100–1540 (440px)
+    Ph4: 1540–2240 (700px)
+    Ph5: 2240–2600 (360px)
+    Ph6: 2600–3500 (900px)
+
+  Lane Y (absolute from bpmn-canvas top):
+    Title row:        0  –  48  h=48
+    Group banner:    48  –  72  h=24
+    InnMgr:          72  –  310 h=238
+    Gov Committee:  310  –  540 h=230
+    VMO:            540  –  680 h=140
+    AI Squad:       680  –  820 h=140
+    Áreas Recep.:   820  –  970 h=150
+-->
+
+<div class="bpmn-table">
+  <div class="title-row">
+    <div class="title-actor-cell">ACTOR / ROL</div>
+    <div class="phase-header ph-1" style="flex:2.5">1. AI RADAR INGESTION</div>
+    <div class="phase-header ph-2" style="flex:1.9">2. COMMITTEE PRIORITZATION</div>
+    <div class="phase-header ph-3" style="flex:2.0">3. AI EXPLORATION CANVAS</div>
+    <div class="phase-header ph-4" style="flex:3.2">4. EXPLORATION &amp; POCS</div>
+    <div class="phase-header ph-5" style="flex:1.65">5. DEMO</div>
+    <div class="phase-header ph-6" style="flex:4.1">6. TRANSFER</div>
+  </div>
+
+  <div class="group-banner" style="top:48px; height:24px;">AI &amp; INNOVATION TEAM</div>
+
+  <div class="lane-row lane-innmgr" style="top:72px; height:320px;">
+    <div class="lane-label"><span>Innovation<br>Manager</span></div>
+    <div class="lane-body"></div>
+  </div>
+  <div class="lane-row lane-gov" style="top:474px; height:230px;">
+    <div class="lane-label"><span style="font-size:7px;">AI Governance<br>Committee<br>(CEO,CBOs,<br>VMO,Preventa,<br>Arquitectura,<br>Delivery Mgr)</span></div>
+    <div class="lane-body"></div>
+  </div>
+  <div class="lane-row lane-vmo" style="top:704px; height:140px;">
+    <div class="lane-label"><span>VMO</span></div>
+    <div class="lane-body"></div>
+  </div>
+  <div class="lane-row lane-squad" style="top:844px; height:140px;">
+    <div class="lane-label"><span>AI Squad</span></div>
+    <div class="lane-body"></div>
+  </div>
+  <div class="lane-row lane-areas" style="top:984px; height:150px;">
+    <div class="lane-label"><span style="font-size:7px;">Áreas<br>Receptoras<br>(Preventa,<br>Arquitectura,<br>Innovation<br>Factory,<br>Aplicaciones<br>Internas)</span></div>
+    <div class="lane-body"></div>
+  </div>
+
+  <div class="col-sep" style="left:680px; top:48px;"></div>
+  <div class="col-sep" style="left:1100px; top:48px;"></div>
+  <div class="col-sep" style="left:1540px; top:48px;"></div>
+  <div class="col-sep" style="left:2240px; top:48px;"></div>
+  <div class="col-sep" style="left:2600px; top:48px;"></div>
+</div>
+
+
+<!-- ══ BPMN ELEMENTS — absolute coords relative to bpmn-canvas ══
+     InnMgr lane center Y ≈ 191
+     Gov lane center Y    ≈ 425
+     VMO lane center Y    ≈ 610
+     Squad lane center Y  ≈ 750
+     Areas lane center Y  ≈ 895
+-->
+
+<!-- START -->
+<div class="bpmn-event bpmn-start" style="left:150px; top:173px;"></div>
+<div class="flow-lbl" style="left:143px; top:213px; color:#e89020; font-weight:700;">Inicio</div>
+
+<!-- A1.1 Investigación profunda -->
+<div class="bpmn-task t-innmgr" style="left:198px; top:155px; width:108px; height:64px;" onclick="openModal('a11t')">
+  <div class="t-num">A1.1</div>
+  <div class="t-txt">Investigación profunda de tecnologías de IA de la industria</div>
+</div>
+
+<!-- A1.2 Depuración AI Radar -->
+<div class="bpmn-task t-innmgr" style="left:318px; top:155px; width:108px; height:64px;" onclick="openModal('a12t')">
+  <div class="t-num">A1.2</div>
+  <div class="t-txt">Depuración y actualización del AI Radar</div>
+</div>
+
+<!-- GW1 ¿Existen otras tecnologías emergentes no mapeadas? center x=450, y=192 → left=424, top=166 -->
+<div class="bpmn-gw" style="left:424px; top:161px; width:52px; height:52px;" onclick="openModal('gw1')">
+  <div class="gw-diamond"></div>
+  <div class="gw-txt">¿Existen otras tecnologías emergentes no mapeadas?</div>
+</div>
+
+<!-- A1.3 Evaluación e incorporación al Backlog (below GW1 in InnMgr lane lower area) -->
+<div class="bpmn-task t-innmgr" style="left:390px; top:295px; width:108px; height:58px;" onclick="openModal('a13t')">
+  <div class="t-num">A1.3</div>
+  <div class="t-txt">Evaluación e incorporación al Backlog de exploración</div>
+</div>
+
+<!-- A1.4 Actualización AI Radar + Backlog Tentativo (InnMgr, Ph1 right) -->
+<div class="bpmn-task t-innmgr" style="left:490px; top:148px; width:112px; height:72px;" onclick="openModal('a14t')">
+  <div class="t-num">A1.4</div>
+  <div class="t-txt">Actualización del AI Radar y Definición del Backlog Tentativo de Exploración</div>
+</div>
+
+<!-- A2.1 Presentación IA Radar al Comité (InnMgr, Ph2) -->
+<div class="bpmn-task t-innmgr" style="left:700px; top:120px; width:118px; height:76px;" onclick="openModal('a21t')">
+  <div class="t-num">A2.1</div>
+  <div class="t-txt">Presentación del IA Radar actualizado y del Backlog de exploración propuesto al Comité</div>
+</div>
+
+<!-- A2.2 Discusión Backlog propuesto y ajustes (Gov, Ph2) -->
+<div class="bpmn-task t-gov" style="left:700px; top:428px; width:118px; height:62px;" onclick="openModal('a22t')">
+  <div class="t-num">A2.2</div>
+  <div class="t-txt">Discusión sobre el Backlog propuesto y ajustes</div>
+</div>
+
+<!-- A2.3 Priorización tecnologías IA (Gov, Ph2 lower) -->
+<div class="bpmn-task t-gov" style="left:700px; top:504px; width:118px; height:68px;" onclick="openModal('a23t')">
+  <div class="t-num">A2.3</div>
+  <div class="t-txt">Priorización de las tecnologías de IA para explorar en el siguiente período</div>
+</div>
+
+<!-- A3.1 Definición AI Exploration Canvas (InnMgr, Ph3) -->
+<div class="bpmn-task t-innmgr" style="left:1116px; top:116px; width:118px; height:72px;" onclick="openModal('a31t')">
+  <div class="t-num">A3.1</div>
+  <div class="t-txt">Definición del AI Exploration Canvas de la tecnología IA priorizada</div>
+</div>
+
+<!-- GW2 ¿Se requiere adquisición de licencias? center x=1294, y=152 → left=1268, top=126 -->
+<div class="bpmn-gw" style="left:1268px; top:126px; width:52px; height:52px;" onclick="openModal('gw2')">
+  <div class="gw-diamond"></div>
+  <div class="gw-txt">¿Se requiere adquisición de licencias?</div>
+</div>
+<div class="flow-lbl" style="left:1279px; top:185px; color:rgba(74,143,234,.9);">Sí</div>
+<div class="flow-lbl" style="left:1325px; top:147px; color:rgba(15,212,180,.8);">No</div>
+
+<!-- A3.2 Solicitar licencias (InnMgr lane lower area, Ph3) -->
+<div class="bpmn-task t-innmgr" style="left:1222px; top:200px; width:118px; height:68px;" onclick="openModal('a32t')">
+  <div class="t-num">A3.2</div>
+  <div class="t-txt">Solicitar licencias de las tecnologías de IA priorizadas</div>
+</div>
+
+<!-- A3.3 Habilitar licencias (VMO, Ph3) -->
+<div class="bpmn-task t-vmo" style="left:1222px; top:649px; width:118px; height:68px;" onclick="openModal('a33t')">
+  <div class="t-num">A3.3</div>
+  <div class="t-txt">Habilitar licencias de las tecnologías de IA priorizadas y asignar</div>
+</div>
+
+<!-- A3.4 Preparar exploración (Squad, Ph3 right) -->
+<div class="bpmn-task t-squad" style="left:1400px; top:790px; width:110px; height:62px;" onclick="openModal('a34t')">
+  <div class="t-num">A3.4</div>
+  <div class="t-txt">Preparar exploración</div>
+</div>
+
+<!-- GW3 X gateway center x=1568, y=739 → left=1542, top=713 -->
+<div class="bpmn-gw" style="left:1542px; top:795px; width:52px; height:52px;" onclick="openModal('gw3')">
+  <div class="gw-diamond" style="background:rgba(15,212,180,.1); border-color:rgba(15,212,180,.6);"></div>
+  <div class="gw-txt" style="color:#0fd4b4; font-size:14px; font-weight:900;">✕</div>
+</div>
+
+<!-- A4.1 Ejecución POC (Squad, Ph4) -->
+<div class="bpmn-task t-squad" style="left:1620px; top:790px; width:118px; height:68px;" onclick="openModal('a41t')">
+  <div class="t-num">A4.1</div>
+  <div class="t-txt">Ejecución de la POC de la tecnología de IA priorizada</div>
+</div>
+
+<!-- A4.2 Validación interna POC (InnMgr, Ph4) -->
+<div class="bpmn-task t-innmgr" style="left:1820px; top:120px; width:118px; height:68px;" onclick="openModal('a42t')">
+  <div class="t-num">A4.2</div>
+  <div class="t-txt">Validación interna de la POC</div>
+</div>
+
+<!-- GW4 ¿POC lista para Demo? center x=2000, y=154 → left=1974, top=128 -->
+<div class="bpmn-gw" style="left:1974px; top:128px; width:52px; height:52px;" onclick="openModal('gw4')">
+  <div class="gw-diamond"></div>
+  <div class="gw-txt">¿POC lista para Demo?</div>
+</div>
+<div class="flow-lbl" style="left:2032px; top:170px; color:rgba(15,212,180,.85);">Sí</div>
+<div class="flow-lbl" style="left:1938px; top:125px; color:rgba(224,80,80,.8);">No</div>
+
+<!-- A4.3 Preparación documentos resultados (Squad, Ph4 far) -->
+<div class="bpmn-task t-squad" style="left:2000px; top:790px; width:118px; height:68px;" onclick="openModal('a43t')">
+  <div class="t-num">A4.3</div>
+  <div class="t-txt">Preparación de documentos de resultados de exploración y carga</div>
+</div>
+
+<!-- A5.1 Presentación de la Demo (Areas, Ph5) -->
+<div class="bpmn-task t-areas" style="left:2256px; top:930px; width:118px; height:64px;" onclick="openModal('a51t')">
+  <div class="t-num">A5.1</div>
+  <div class="t-txt">Presentación de la Demo</div>
+</div>
+
+<!-- A5.2 Evaluar resultados para escalamiento (VMO, Ph5) -->
+<div class="bpmn-task t-vmo" style="left:2256px; top:649px; width:118px; height:68px;" onclick="openModal('a52t')">
+  <div class="t-num">A5.2</div>
+  <div class="t-txt">Evaluar resultados de la exploración para escalamiento</div>
+</div>
+
+<!-- GW5 ¿Tecnología aprobada para escalar? center x=2436, y=601 → left=2410, top=575 -->
+<div class="bpmn-gw" style="left:2410px; top:657px; width:52px; height:52px;" onclick="openModal('gw5')">
+  <div class="gw-diamond"></div>
+  <div class="gw-txt">¿Tecnología aprobada para escalar?</div>
+</div>
+<div class="flow-lbl" style="left:2468px; top:680px; color:rgba(15,212,180,.85);">Sí</div>
+
+<!-- A6.1 Preparación docs transferencia - Adoption Kit (Squad, Ph6) -->
+<div class="bpmn-task t-squad" style="left:2630px; top:790px; width:120px; height:68px;" onclick="openModal('a61t')">
+  <div class="t-num">A6.1</div>
+  <div class="t-txt">Preparación de documentos para la transferencia (Adoption Kit)</div>
+</div>
+
+<!-- A6.2 Sesión técnica ampliada (Areas, Ph6) -->
+<div class="bpmn-task t-areas" style="left:2790px; top:930px; width:120px; height:64px;" onclick="openModal('a62t')">
+  <div class="t-num">A6.2</div>
+  <div class="t-txt">Sesión técnica ampliada sobre la tecnología explorada</div>
+</div>
+
+<!-- A6.3 Encuesta de satisfacción (Areas, Ph6 far) -->
+<div class="bpmn-task t-areas" style="left:2940px; top:930px; width:118px; height:64px;" onclick="openModal('a63t')">
+  <div class="t-num">A6.3</div>
+  <div class="t-txt">Encuesta de satisfacción de la transferencia</div>
+</div>
+
+<!-- A6.4 Soporte a áreas receptoras (Squad, Ph6 far right) -->
+<div class="bpmn-task t-squad" style="left:3200px; top:790px; width:118px; height:64px;" onclick="openModal('a64t')">
+  <div class="t-num">A6.4</div>
+  <div class="t-txt">Soporte a áreas receptoras</div>
+</div>
+
+<!-- END -->
+<div class="bpmn-event bpmn-end" style="left:3348px; top:812px;"></div>
+<div class="flow-lbl" style="left:3342px; top:852px; color:#e05050; font-weight:700;">Fin</div>
+
+
+<!-- ══ SVG ARROWS ══ -->
+<svg xmlns="http://www.w3.org/2000/svg" width="3500" height="1082"
+     style="position:absolute;top:0;left:0;pointer-events:none;z-index:5;">
+  <defs>
+    <marker id="arr-im" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="rgba(74,143,234,.9)" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr-gv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="rgba(157,111,240,.9)" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr-vm" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="rgba(232,144,32,.9)" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr-sq" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="rgba(15,212,180,.9)" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="rgba(224,80,80,.9)" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+    <marker id="arr-or" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
+      <path d="M1 1L9 5L1 9" fill="none" stroke="rgba(232,144,32,.9)" stroke-width="1.8" stroke-linecap="round"/>
+    </marker>
+  </defs>
+
+  <!-- FASE 1 -->
+  <!-- START → A1.1 -->
+  <line x1="186" y1="187" x2="198" y2="187" stroke="rgba(232,144,32,.85)" stroke-width="1.5" marker-end="url(#arr-or)"/>
+  <!-- A1.1 → A1.2 -->
+  <line x1="306" y1="187" x2="318" y2="187" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <!-- A1.2 → GW1 -->
+  <line x1="426" y1="187" x2="424" y2="187" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <!-- GW1 Sí ↓ A1.3: largo con espacio -->
+  <line x1="450" y1="213" x2="450" y2="295" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <text x="454" y="258" font-size="8" fill="rgba(74,143,234,.9)" font-family="Barlow,sans-serif" font-weight="700">Sí</text>
+  <!-- GW1 No → A1.4: horizontal limpio -->
+  <line x1="476" y1="187" x2="490" y2="184" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <text x="478" y="178" font-size="8" fill="rgba(74,143,234,.85)" font-family="Barlow,sans-serif" font-weight="700">No</text>
+  <!-- A1.3 → A1.4: sube desde A1.3 en x=498 hasta y=220, luego derecha a A1.4 -->
+  <path d="M498 324 L546 324 L546 220" fill="none" stroke="rgba(74,143,234,.55)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-im)"/>
+  <!-- A1.4 → A2.1 -->
+  <line x1="602" y1="184" x2="700" y2="158" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+
+  <!-- FASE 2 -->
+  <!-- A2.1 ↓ A2.2 -->
+  <line x1="759" y1="196" x2="759" y2="428" stroke="rgba(157,111,240,.65)" stroke-width="1.5" marker-end="url(#arr-gv)"/>
+  <!-- A2.2 ↓ A2.3 -->
+  <line x1="759" y1="490" x2="759" y2="504" stroke="rgba(157,111,240,.65)" stroke-width="1.5" marker-end="url(#arr-gv)"/>
+  <!-- A2.3 → A3.1: right, up to InnMgr, right -->
+  <path d="M818 538 L1080 538 L1080 152 L1116 152" fill="none" stroke="rgba(157,111,240,.45)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-im)"/>
+
+  <!-- FASE 3 -->
+  <!-- A3.1 → GW2 -->
+  <line x1="1234" y1="152" x2="1268" y2="152" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <!-- GW2 Sí ↓ A3.2 -->
+  <line x1="1294" y1="178" x2="1294" y2="200" stroke="rgba(74,143,234,.7)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <!-- A3.2 ↓ to A3.3: down through InnMgr & Gov lanes to VMO -->
+  <path d="M1281 268 L1281 649" fill="none" stroke="rgba(232,144,32,.65)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-vm)"/>
+  <!-- GW2 No → A3.4: baja por x=1460, llega a A3.4 por la izquierda -->
+  <path d="M1320 152 L1460 152 L1460 821 L1400 821" fill="none" stroke="rgba(15,212,180,.5)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-sq)"/>
+  <!-- A3.3 → GW3: sale por la derecha de A3.3 (x=1340), baja y entra por arriba a GW3 -->
+  <path d="M1340 683 L1568 683 L1568 795" fill="none" stroke="rgba(15,212,180,.55)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-sq)"/>
+
+  <!-- FASE 4 -->
+  <!-- A3.4 → GW3 -->
+  <line x1="1510" y1="821" x2="1542" y2="821" stroke="rgba(15,212,180,.75)" stroke-width="1.5" marker-end="url(#arr-sq)"/>
+  <!-- GW3 → A4.1 -->
+  <line x1="1594" y1="821" x2="1620" y2="824" stroke="rgba(15,212,180,.75)" stroke-width="1.5" marker-end="url(#arr-sq)"/>
+  <!-- A4.1 → A4.2: up to InnMgr -->
+  <path d="M1679 790 L1679 154 L1820 154" fill="none" stroke="rgba(74,143,234,.5)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-im)"/>
+  <!-- A4.2 → GW4 -->
+  <line x1="1938" y1="154" x2="1974" y2="154" stroke="rgba(74,143,234,.75)" stroke-width="1.5" marker-end="url(#arr-im)"/>
+  <!-- GW4 Sí ↓ A4.3: down to Squad -->
+  <path d="M2000 180 L2000 790" fill="none" stroke="rgba(15,212,180,.65)" stroke-width="1.5" marker-end="url(#arr-sq)"/>
+  
+  
+  <!-- GW4 No → A4.1: sale izq GW4, baja columna x=1950, entra top A4.1 -->
+  <path d="M1974 154 L1950 154 L1950 772 L1679 772 L1679 790" fill="none" stroke="rgba(224,80,80,.6)" stroke-width="1.5" stroke-dasharray="6 3" marker-end="url(#arr-sq)"/>
+  <text x="1790" y="685" font-size="8" fill="rgba(224,80,80,.75)" font-family="Barlow,sans-serif" font-weight="700">No (iterar)</text>
+  <!-- A4.3 → A5.1: right then down to Areas -->
+  <path d="M2118 824 L2315 824 L2315 930" fill="none" stroke="rgba(224,80,80,.65)" stroke-width="1.5" marker-end="url(#arr-ar)"/>
+
+  <!-- FASE 5 -->
+  <!-- A5.1 ↑ to A5.2 -->
+  <line x1="2315" y1="930" x2="2315" y2="717" stroke="rgba(232,144,32,.6)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-vm)"/>
+  <!-- A5.2 → GW5 -->
+  <line x1="2374" y1="683" x2="2410" y2="683" stroke="rgba(232,144,32,.75)" stroke-width="1.5" marker-end="url(#arr-vm)"/>
+  <!-- GW5 Sí → A6.1: right, down to Squad -->
+  <path d="M2462 683 L2570 683 L2570 824 L2630 824" fill="none" stroke="rgba(15,212,180,.65)" stroke-width="1.5" marker-end="url(#arr-sq)"/>
+  <!-- GW5 No ↓ -->
+  <path d="M2436 709 L2436 802 L2510 802" fill="none" stroke="rgba(224,80,80,.5)" stroke-width="1.5" stroke-dasharray="5 3" marker-end="url(#arr-ar)"/>
+  <text x="2442" y="682" font-size="8" fill="rgba(224,80,80,.75)" font-family="Barlow,sans-serif" font-weight="700">No</text>
+
+  <!-- FASE 6 -->
+  <!-- A6.1 ↓ A6.2: down to Areas -->
+  <path d="M2690 858 L2690 930 L2790 930" fill="none" stroke="rgba(224,80,80,.6)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-ar)"/>
+  <!-- A6.1 → A6.4: horizontal through Squad -->
+  <line x1="2750" y1="824" x2="3200" y2="824" stroke="rgba(15,212,180,.6)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-sq)"/>
+  <!-- A6.2 → A6.3 -->
+  <line x1="2910" y1="962" x2="2940" y2="962" stroke="rgba(224,80,80,.75)" stroke-width="1.5" marker-end="url(#arr-ar)"/>
+  <!-- A6.3 ↑ → A6.4 -->
+  <path d="M2999 930 L2999 824 L3200 824" fill="none" stroke="rgba(15,212,180,.55)" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr-sq)"/>
+  <!-- A6.4 → END -->
+  <line x1="3318" y1="823" x2="3348" y2="830" stroke="rgba(224,80,80,.75)" stroke-width="1.5" marker-end="url(#arr-ar)"/>
+
+</svg>
+
+</div>
+</div>
+
+<!-- TOOLTIP -->
+<div id="tooltip"><div class="tt-inner" id="tt-text"></div></div>
+
+<!-- MODAL -->
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div id="modal">
+    <div class="m-hdr">
+      <div class="m-accent" id="m-accent"></div>
+      <div class="m-htxt">
+        <div class="m-phase" id="m-phase"></div>
+        <div class="m-num" id="m-num"></div>
+        <div class="m-title" id="m-title"></div>
+      </div>
+      <button class="m-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="m-body" id="m-body"></div>
+    <div class="m-footer" id="m-footer">
+      <button class="m-edit-main-btn" onclick="enterEditMode(currentModalId)">✏️ Editar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const data = {
+  a11t:{
+    phase:'Fase 01 · AI Radar Ingestion', num:'A1.1', color:'#4a8fea',
+    title:'Investigación profunda de tecnologías de IA de la industria',
+    responsible:'Innovation Manager',
+    inputs:['Tendencias del mercado y publicaciones especializadas en IA','Resultados de investigaciones previas','Excel con tecnologías de IA a explorar','AI Radar (versión anterior)'],
+    flow:[
+      'El Innovation Manager lidera la investigación sobre nuevas tecnologías emergentes de IA en la industria.',
+      'Revisa fuentes especializadas: investigación profunda con IA, artículos académicos, informes de analistas, blogs técnicos, repositorios abiertos y eventos del sector.',
+      'Identifica tecnologías relevantes para el contexto de Business IT, junto con sus características, posibles casos de uso y niveles de madurez.',
+      'Consolida los resultados de la investigación en la lista de tecnologías a explorar del AI Squad.'
+    ],
+    tools:['Plataformas de IA (Gemini, ChatGPT, Claude)','Informes y estudios de la industria (Gartner, MIT, Deloitte, NTT DATA, Forrester, IDC, otros)','AI Radar (hoja de registro de tecnologías)'],
+    outputs:['Excel actualizado de tecnologías de IA aplicables a BIT']
+  },
+  a12t:{
+    phase:'Fase 01 · AI Radar Ingestion', num:'A1.2', color:'#4a8fea',
+    title:'Depuración y actualización del AI Radar',
+    responsible:'Innovation Manager',
+    inputs:['Excel actualizado de tecnologías de IA aplicables a BIT','AI Radar (versión anterior)'],
+    flow:[
+      'Revisa el AI Radar vigente e identifica entradas obsoletas o tecnologías que ya alcanzaron la madurez. Actualiza el estado de las exploraciones realizadas.',
+      'Elimina los registros que ya no son relevantes para la estrategia de exploración o para las tecnologías deprecadas.',
+      'Incorpora las nuevas tecnologías identificadas para el siguiente periodo de exploración.',
+      'Evalúa si existen otras tecnologías emergentes no mapeadas (sugeridas habitualmente por los miembros del Comité de Gobierno de la IA). Si existen → A1.3. No existen → clasificación.',
+      'Clasifica las tecnologías según el horizonte de investigación (Adopt, Trial, Assess, Hold).',
+      'Actualiza el Excel de Tecnologías de IA aplicables a BIT.'
+    ],
+    tools:['AI Radar','Excel actualizado de tecnologías de IA aplicables a BIT'],
+    outputs:['Excel de Tecnologías de IA aplicables a BIT (actualizado)']
+  },
+  gw1:{
+    phase:'Fase 01 · AI Radar Ingestion', num:'GW1', color:'#e89020',
+    title:'¿Existen otras tecnologías emergentes no mapeadas?',
+    responsible:'Innovation Manager',
+    inputs:['AI Radar actualizado'],
+    flow:['Sí: Se deriva a A1.3 — Evaluación e incorporación al Backlog de Exploración.','No: Se continúa con la clasificación y se avanza a A1.4.'],
+    tools:[],
+    outputs:['Decisión de flujo del proceso']
+  },
+  a13t:{
+    phase:'Fase 01 · AI Radar Ingestion', num:'A1.3', color:'#4a8fea',
+    title:'Evaluación e incorporación al Backlog de Exploración',
+    responsible:'Innovation Manager',
+    inputs:['Excel actualizado de tecnologías de IA aplicables a BIT','Observaciones y sugerencias del Comité'],
+    flow:[
+      'Recibe sugerencias de nuevas tecnologías de IA para su exploración por parte de los miembros del Comité y de otros Stakeholders clave.',
+      'Analiza la viabilidad técnica, la alineación estratégica y el potencial de cada tecnología adicional.',
+      'Clasifica las tecnologías sugeridas según el horizonte de investigación (Adopt, Trial, Assess, Hold).',
+      'Actualiza el backlog consolidando todas las tecnologías candidatas.'
+    ],
+    tools:['Excel de Tecnologías de IA aplicables a BIT','AI Radar'],
+    outputs:['Backlog de Exploración consolidado con tecnologías sugeridas por el Comité']
+  },
+  a14t:{
+    phase:'Fase 01 · AI Radar Ingestion', num:'A1.4', color:'#4a8fea',
+    title:'Actualización del AI Radar y definición del backlog tentativo de exploración',
+    responsible:'Innovation Manager',
+    inputs:['AI Radar (versión anterior)','Excel de Tecnologías de IA aplicables a BIT (actualizado)'],
+    flow:[
+      'Consolida todas las tecnologías a explorar en el AI Radar.',
+      'Define el Backlog tentativo de exploración, priorizando preliminarmente las tecnologías más relevantes o de mayor impacto para la organización.',
+      'Prepara la presentación del AI Radar y el Backlog Tentativo para la siguiente sesión del Comité de Gobierno de la IA.',
+      'Comparte el AI Radar actualizado con el AI Squad.'
+    ],
+    tools:['AI Radar','Excel de Tecnologías de IA aplicables a BIT'],
+    outputs:['AI Radar (actualizado y listo para presentación)','Backlog tentativo de exploración documentado','Presentación de Follow-Up para el Comité de Gobierno de la IA']
+  },
+  a21t:{
+    phase:'Fase 02 · Committee Prioritization', num:'A2.1', color:'#4a8fea',
+    title:'Presentación del AI Radar actualizado y del backlog de exploración propuesto al Comité',
+    responsible:'Innovation Manager',
+    inputs:['AI Radar (actualizado)','Backlog Tentativo de Exploración'],
+    flow:[
+      'El Innovation Manager presenta ante el Comité de Gobierno de la IA el AI Radar actualizado, destacando las nuevas tecnologías incorporadas y las descartadas.',
+      'Expone el Backlog tentativo de exploración con la justificación de cada tecnología candidata.',
+      'Se abre el espacio para que el Comité emita observaciones o formule preguntas sobre las tecnologías expuestas.'
+    ],
+    tools:['AI Radar','Excel de Tecnologías de IA aplicables a BIT'],
+    outputs:['Presentación de Follow-Up (PowerPoint)','AI Radar (actualizado)']
+  },
+  a22t:{
+    phase:'Fase 02 · Committee Prioritization', num:'A2.2', color:'#9d6ff0',
+    title:'Discusión sobre el backlog propuesto y ajustes',
+    responsible:'AI Governance Committee',
+    inputs:['Presentación de Follow-Up (PowerPoint)','AI Radar (actualizado)'],
+    flow:[
+      'El Comité discute en detalle cada tecnología del backlog, considerando criterios estratégicos, los recursos disponibles y la alineación con los objetivos de negocio.',
+      'Formula preguntas y observaciones al Innovation Manager sobre las tecnologías propuestas.',
+      'El Innovation Manager responde con argumentos sobre las tecnologías expuestas.',
+      'El Innovation Manager documenta el resultado de la discusión y los cambios realizados.'
+    ],
+    tools:['AI Radar','Presentación de Follow-Up (PowerPoint)'],
+    outputs:['Observaciones y sugerencias por parte del Comité de Gobierno de la IA']
+  },
+  a23t:{
+    phase:'Fase 02 · Committee Prioritization', num:'A2.3', color:'#9d6ff0',
+    title:'Priorización de las tecnologías de IA para explorar en el siguiente período',
+    responsible:'AI Governance Committee',
+    inputs:['Observaciones y sugerencias por parte del Comité de Gobierno de la IA'],
+    flow:[
+      'El Comité realiza los ajustes al backlog que considere convenientes: eliminar tecnologías, redistribuir prioridades, detener exploraciones y ejecutar re-exploraciones.',
+      'Aplica criterios de priorización: impacto estratégico, viabilidad técnica, recursos necesarios, urgencia del negocio o comercial, entre otros.',
+      'Se definen las tecnologías a explorar durante el siguiente período y se establece un orden de prioridad.',
+      'Se asigna o se confirma a miembros del AI Squad como responsables de explorar cada tecnología priorizada.',
+      'Se comunica la decisión al Innovation Manager.',
+      'El Innovation Manager documenta las observaciones, sugerencias y decisiones del Comité.'
+    ],
+    tools:['AI Radar','Presentación de Follow-Up (PowerPoint)'],
+    outputs:['Backlog de exploración priorizado con tecnologías aprobadas para el siguiente periodo','AI Radar (actualizado)','Asignaciones definidas de los miembros del AI Squad','Acta de reunión con las observaciones y retroalimentación del Comité']
+  },
+  a31t:{
+    phase:'Fase 03 · AI Exploration Canvas', num:'A3.1', color:'#4a8fea',
+    title:'Definición del AI Exploration Canvas de la tecnología IA priorizada',
+    responsible:'Innovation Manager',
+    inputs:['Lista de tecnologías priorizadas por el Comité','AI Radar (actualizado)'],
+    flow:[
+      'El Innovation Manager selecciona la tecnología de mayor prioridad del backlog aprobado.',
+      'Junto con el equipo de exploración asignado, elabora el AI Exploration Canvas: descripción de la tecnología, casos de uso potenciales, hipótesis a validar, criterios de éxito, recursos necesarios y riesgos identificados.',
+      'Define el alcance de la exploración (caso de uso) y los entregables esperados de la POC.',
+      'Crea la carpeta de exploración de la tecnología seleccionada en el repositorio.',
+      'Consolida la plantilla y la carga en el repositorio correspondiente.',
+      'Crea el ítem de trabajo correspondiente a la exploración (Features) en el tablero de Azure DevOps.',
+      'Evalúa si la tecnología requiere adquisición de licencias: Sí → A3.2 / No → preparar exploración.'
+    ],
+    tools:['AI Radar','Plantilla del AI Exploration Canvas','Repositorio de Investigación (Onedrive, Sharepoint)','Tablero en Azure DevOps'],
+    outputs:['AI Exploration Canvas completado y validado','Repositorio de la tecnología a explorar creado','Tablero de Azure DevOps de exploración actualizado']
+  },
+  gw2:{
+    phase:'Fase 03 · AI Exploration Canvas', num:'GW2', color:'#e89020',
+    title:'¿Se requiere adquisición de licencias?',
+    responsible:'Innovation Manager',
+    inputs:['AI Exploration Canvas completado'],
+    flow:['Sí: Se deriva a A3.2 — Solicitar licencias para las tecnologías de IA priorizadas.','No: Se procede directamente a A3.4 — Preparar la exploración.'],
+    tools:[],
+    outputs:['Decisión de flujo del proceso']
+  },
+  a32t:{
+    phase:'Fase 03 · AI Exploration Canvas', num:'A3.2', color:'#4a8fea',
+    title:'Solicitar licencias para las tecnologías de IA priorizadas',
+    responsible:'Innovation Manager',
+    inputs:['Lista de tecnologías a explorar con necesidad de licenciamiento'],
+    flow:[
+      'El Innovation Manager crea la solicitud de licencias para las tecnologías que requieren licenciamiento.',
+      'Detalla el proveedor, el tipo de licenciamiento y las personas del equipo de AI Squad a las que asignar licencias.',
+      'Envía la solicitud por correo, dirigida a la VMO y a los demás miembros del Comité de Gobierno de la IA.',
+      'Confirma la recepción del correo electrónico y espera la respuesta de la VMO.'
+    ],
+    tools:['Plantilla de correo electrónico de solicitud'],
+    outputs:['Correo de solicitud de licenciamiento']
+  },
+  a33t:{
+    phase:'Fase 03 · AI Exploration Canvas', num:'A3.3', color:'#e89020',
+    title:'Habilitar licencias de las tecnologías de IA priorizadas y asignar',
+    responsible:'VMO',
+    inputs:['Correo de solicitud'],
+    flow:[
+      'El VMO recibe la solicitud de licencias del Innovation Manager.',
+      'Identifica al proveedor de la tecnología y gestiona la cotización y/o el proceso de adquisición.',
+      'Realiza los trámites administrativos y legales necesarios para la adquisición.',
+      'Una vez aprobadas y adquiridas, la VMO procede a activar técnicamente las licencias en las plataformas correspondientes.',
+      'Se asignan los accesos a los miembros del AI Squad que participarán en la(s) POC(s).',
+      'Se verifica que todos los usuarios tengan acceso funcional a la herramienta.',
+      'Se notifica al Innovation Manager y al AI Squad que las licencias están habilitadas y asignadas.',
+      'Envía un correo de respuesta con la confirmación de la asignación.'
+    ],
+    tools:['Portal de administración del proveedor de la tecnología','Correo electrónico / herramienta de notificación'],
+    outputs:['Licencias adquiridas y habilitadas','Accesos asignados a los miembros del AI Squad','Correo de confirmación de acceso']
+  },
+  a34t:{
+    phase:'Fase 03 · AI Exploration Canvas', num:'A3.4', color:'#0fd4b4',
+    title:'Preparar exploración',
+    responsible:'AI Squad (explorador(es) asignado(s))',
+    inputs:['AI Exploration Canvas completado y validado','Licencias y accesos habilitados (si aplica)','Repositorio de la tecnología a explorar creado (Onedrive / Sharepoint)','Tablero de Azure DevOps de exploración'],
+    flow:[
+      'Revisa el AI Exploration Canvas y el alcance definido para la POC.',
+      'Prepara el entorno técnico: ambientes, repositorios, accesos, infraestructura necesaria.',
+      'Define los casos de prueba, los conjuntos de datos de trabajo y los criterios de validación.',
+      'Crea los ítems de trabajo (PBIs y tareas) en el tablero de Azure DevOps para la tecnología a explorar (Feature).'
+    ],
+    tools:['AI Exploration Canvas','Repositorios de código (GitHub / Azure DevOps)','Ambientes cloud o locales para la POC','Tablero de Azure DevOps de exploración'],
+    outputs:['Entorno de trabajo configurado','Tareas de trabajo de la POC definidas','Tablero de Azure DevOps de exploración actualizado']
+  },
+  gw3:{
+    phase:'Fase 04 · Exploration & POCs', num:'GW3', color:'#0fd4b4',
+    title:'Compuerta de control de exploración',
+    responsible:'AI Squad',
+    inputs:['Entorno de trabajo configurado','Tareas de la POC definidas'],
+    flow:['Punto de sincronización: confluyen el flujo de A3.4 (preparación) y A3.3 (licencias).','Verifica que el entorno esté listo para iniciar la ejecución de la POC.'],
+    tools:[],
+    outputs:['Inicio de ejecución de la POC autorizado']
+  },
+  a41t:{
+    phase:'Fase 04 · Exploration & POCs', num:'A4.1', color:'#0fd4b4',
+    title:'Ejecución de la POC de la tecnología de IA priorizada',
+    responsible:'AI Squad (explorador(es) asignado(s))',
+    inputs:['AI Exploration Canvas','Entorno técnico preparado','Tareas de trabajo de la POC en el tablero de Azure DevOps','Licencias habilitadas y asignadas'],
+    flow:[
+      'Ejecuta la POC según las actividades de trabajo definidas.',
+      'Implementa los casos de uso identificados en el AI Exploration Canvas.',
+      'Consolida el código en el repositorio del proyecto (si aplica).',
+      'Realiza pruebas iterativas y documenta los resultados, hallazgos y obstáculos.',
+      'Contrasta el desempeño de la tecnología contra los criterios de éxito definidos.',
+      'Documenta las lecciones aprendidas y las observaciones técnicas durante la ejecución.',
+      'Coordina con el Innovation Manager para la validación interna.'
+    ],
+    tools:['Tecnología de IA en exploración (con licencias habilitadas)','Repositorios de código (GitHub / Azure DevOps)','IDE de desarrollo (si aplica)','Plataformas Cloud (Azure, AWS, GCP según corresponda)','Tablero Azure DevOps'],
+    outputs:['POC implementada y probada','Código en el repositorio respectivo (si aplica)','Registro de hallazgos y lecciones aprendidas']
+  },
+  a42t:{
+    phase:'Fase 04 · Exploration & POCs', num:'A4.2', color:'#4a8fea',
+    title:'Validación interna de la POC',
+    responsible:'Innovation Manager',
+    inputs:['AI Exploration Canvas','POC implementada y probada','Código en el repositorio respectivo (si aplica)'],
+    flow:[
+      'El AI Squad realiza una presentación interna de los resultados obtenidos en la POC.',
+      'El Innovation Manager evalúa si los resultados cumplen con los criterios de éxito y de calidad definidos en el AI Exploration Canvas.',
+      'Determina si la POC está lista para ser presentada en Demo (¿POC lista para Demo?): Sí → A4.3 / No → retorno a A4.1 para ajustes o mejoras.'
+    ],
+    tools:['Criterios de éxito del AI Exploration Canvas','Documentación de resultados de la POC','Reunión de revisión interna (MS Teams)'],
+    outputs:['Decisión validada: POC aprobada para Demo o retorno a ejecución']
+  },
+  gw4:{
+    phase:'Fase 04 · Exploration & POCs', num:'GW4', color:'#e89020',
+    title:'¿POC lista para Demo?',
+    responsible:'Innovation Manager',
+    inputs:['Resultado de validación interna de la POC'],
+    flow:['Sí: Se procede a preparar los documentos de resultados y la Demo con el Comité de Gobierno de IA (A4.3).','No: Se retorna a la ejecución de la POC para ajustes o mejoras (A4.1).'],
+    tools:[],
+    outputs:['Decisión de flujo del proceso']
+  },
+  a43t:{
+    phase:'Fase 04 · Exploration & POCs', num:'A4.3', color:'#0fd4b4',
+    title:'Preparación de documentos de resultados de exploración y carga',
+    responsible:'AI Squad',
+    inputs:['AI Exploration Canvas','Documentación de resultados de la POC'],
+    flow:[
+      'Elabora el documento de resultados de la exploración: radar de evaluación, hallazgos, métricas obtenidas, riesgos, consideraciones de adopción y recomendación.',
+      'Prepara los materiales visuales y técnicos necesarios para la Demo.',
+      'Carga la documentación generada en el repositorio oficial de conocimiento (Onedrive / SharePoint).',
+      'Crea video de explicación y lo carga en el Agent Hub.',
+      'Se notifica al Innovation Manager que la documentación está lista.'
+    ],
+    tools:['Plantilla de Informe de Exploración (Powerpoint)','Slide con el resumen ejecutivo de resultados (Powerpoint)','Repositorio de la exploración (Onedrive / SharePoint)','Agent Hub'],
+    outputs:['Informe de Exploración / Slide con el resumen ejecutivo','Video explicativo de la exploración','Documentos de resultados de exploración cargados en repositorio','Otros materiales para la Demo preparados']
+  },
+  a51t:{
+    phase:'Fase 05 · Demo', num:'A5.1', color:'#e05050',
+    title:'Presentación de la Demo',
+    responsible:'AI Squad / Innovation Manager (presentan) — AI Governance Committee y Áreas Receptoras (asisten)',
+    inputs:['AI Exploration Canvas','Informe de Exploración / Slide con el resumen ejecutivo','Video explicativo de la exploración','Documentos de resultados de exploración cargados en repositorio','Otros materiales para la Demo preparados'],
+    flow:[
+      'El Innovation Manager presenta el AI Exploration Canvas con la hipótesis de valor de la exploración (objetivos, métricas objetivo, alcance, etc.).',
+      'El AI Squad presenta los resultados y demuestra en vivo (o con evidencia grabada) el funcionamiento de la tecnología explorada.',
+      'Se muestran los casos de uso implementados, las métricas obtenidas y las conclusiones principales, junto con la recomendación de adoptar o no la tecnología.',
+      'El Innovation Manager presenta el resumen ejecutivo de los resultados incluyendo la recomendación de adopción.',
+      'El AI Governance Committee y las Áreas Receptoras evalúan los resultados y formulan preguntas.',
+      'Se recoge la retroalimentación de los asistentes.'
+    ],
+    tools:['Entorno de Demo (ambiente técnico de la POC)','MS Teams / sala de reuniones'],
+    outputs:['Demo realizada']
+  },
+  a52t:{
+    phase:'Fase 05 · Demo', num:'A5.2', color:'#e89020',
+    title:'Evaluación de resultados de la exploración para escalamiento',
+    responsible:'AI Governance Committee',
+    inputs:['AI Exploration Canvas','Informe de Exploración / Slide con el resumen ejecutivo','Demo realizada','Retroalimentación de la Demo'],
+    flow:[
+      'Con base en lo expuesto en la Demo, el Comité evalúa los resultados para determinar si la tecnología debe escalar: impacto de negocio alcanzable, viabilidad de implementación a escala, retorno esperado, riesgos y dependencias.',
+      'Se toma la decisión formal — ¿Tecnología aprobada para escalar?: Sí → Fase de Transferencia (A6.1) / No → Cierre del ciclo de exploración (Fin).',
+      'Se comunica la decisión al Innovation Manager, al AI Squad y a las áreas receptoras.'
+    ],
+    tools:['AI Exploration Canvas','Informe de Exploración / Slide con el resumen ejecutivo'],
+    outputs:['Decisión formal del Comité documentada','Instrucción de transferencia (si aplica) o cierre del ciclo']
+  },
+  gw5:{
+    phase:'Fase 05 · Demo', num:'GW5', color:'#e89020',
+    title:'¿Tecnología aprobada para escalar?',
+    responsible:'AI Governance Committee',
+    inputs:['Decisión formal del Comité'],
+    flow:['Sí: Se inicia la Fase de Transferencia (A6.1).','No: Se cierra el ciclo de exploración (Fin). Los resultados quedan documentados en el repositorio.'],
+    tools:[],
+    outputs:['Decisión de flujo del proceso']
+  },
+  a61t:{
+    phase:'Fase 06 · Transfer', num:'A6.1', color:'#0fd4b4',
+    title:'Preparación de documentos para la transferencia (Adoption Kit)',
+    responsible:'AI Squad',
+    inputs:['Decisión de escalamiento aprobada por el Comité','Documentos de resultados de la exploración','POC implementada'],
+    flow:[
+      'El AI Squad elabora el Adoption Kit: guía de implementación, arquitectura de la solución, casos de uso documentados, requerimientos técnicos, guía de configuración y proceso de despliegue.',
+      'Prepara la agenda y los materiales para la sesión técnica ampliada con las Áreas Receptoras.',
+      'El Innovation Manager revisa y aprueba el Adoption Kit antes de la sesión de transferencia.'
+    ],
+    tools:['Plantilla de Adoption Kit','Materiales de capacitación para sesión ampliada','Repositorio de la exploración (Onedrive / SharePoint)','Repositorio de código (GitHub / Azure DevOps) (si aplica)'],
+    outputs:['Adoption Kit completo y aprobado','Materiales de capacitación listos','Agenda de la sesión técnica ampliada']
+  },
+  a62t:{
+    phase:'Fase 06 · Transfer', num:'A6.2', color:'#e05050',
+    title:'Sesión técnica ampliada sobre la tecnología explorada',
+    responsible:'AI Squad / Innovation Manager (facilitan) — Áreas Receptoras (participan)',
+    inputs:['Adoption Kit','Materiales de capacitación','Equipos de las Áreas Receptoras convocados'],
+    flow:[
+      'El AI Squad facilita la sesión técnica ampliada con los equipos de las Áreas Receptoras.',
+      'Se presenta el Adoption Kit y se explica en detalle la tecnología: funcionamiento, casos de uso, integración y configuración.',
+      'Se realizan demostraciones prácticas y ejercicios guiados para que las Áreas Receptoras comprendan el uso de la tecnología.',
+      'Se resuelven dudas técnicas y se establecen acuerdos de soporte post-transferencia.',
+      'Se define el plan de soporte inicial que el AI Squad brindará a las Áreas Receptoras.'
+    ],
+    tools:['Adoption Kit','Materiales de capacitación (presentaciones, videos, guías)','Entorno de demostración','MS Teams / sala de reuniones'],
+    outputs:['Sesión técnica realizada','Áreas Receptoras capacitadas','Acuerdos de soporte documentados']
+  },
+  a63t:{
+    phase:'Fase 06 · Transfer', num:'A6.3', color:'#e05050',
+    title:'Encuesta de satisfacción de la transferencia',
+    responsible:'Áreas Receptoras',
+    inputs:['Sesión técnica ampliada realizada'],
+    flow:[
+      'El AI Squad distribuye la encuesta de satisfacción a todos los participantes de la sesión técnica ampliada y del proceso de transferencia.',
+      'Los participantes completan la encuesta evaluando: claridad del Adoption Kit, calidad de la sesión técnica y percepción del valor de la tecnología.',
+      'Se recopilan y analizan los resultados de la encuesta.',
+      'El Innovation Manager revisa los resultados e identifica oportunidades de mejora para futuras transferencias.'
+    ],
+    tools:['Microsoft Forms'],
+    outputs:['Encuesta de satisfacción completada por las Áreas Receptoras','Oportunidades de mejora identificadas']
+  },
+  a64t:{
+    phase:'Fase 06 · Transfer', num:'A6.4', color:'#0fd4b4',
+    title:'Soporte a Áreas Receptoras',
+    responsible:'AI Squad',
+    inputs:['Adoption Kit entregado','Sesión técnica completada','Acuerdos de soporte definidos'],
+    flow:[
+      'El AI Squad brinda soporte técnico a las Áreas Receptoras durante el período acordado post-transferencia.',
+      'Se atienden consultas, incidencias y requerimientos de ajuste que surjan durante la implementación inicial.',
+      'Se documentan los casos de soporte atendidos y las soluciones aplicadas para enriquecer el Adoption Kit.',
+      'Al finalizar el período de soporte, se realiza una revisión de cierre y se da por concluido el proceso.'
+    ],
+    tools:['Canal de soporte definido (Teams, correo, sistema de tickets)','Adoption Kit (referencia para soporte)','Repositorio de conocimiento (Onedrive / SharePoint)'],
+    outputs:['Soporte brindado y documentado','Adoption Kit actualizado con aprendizajes del soporte','FIN DEL PROCESO']
+  }
+};
+
+
+// ── Modal state ──────────────────────────────────────────
+let currentModalId = null;
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// Normalize outputs to [{text, url}]
+function getOutputs(id) {
+  return (data[id].outputs || []).map(o => typeof o === 'string' ? {text:o, url:''} : o);
+}
+
+// ── VIEW mode ────────────────────────────────────────────
+function renderModal(id) {
+  const d = data[id]; if (!d) return;
+  const c = d.color;
+
+  document.getElementById('m-accent').style.background = c;
+  document.getElementById('m-phase').textContent = d.phase;
+  document.getElementById('m-num').textContent = (id.startsWith('gw') ? '⬡ Compuerta ' : '☐ Actividad ') + d.num;
+  document.getElementById('m-title').textContent = d.title;
+
+  // Outputs with link buttons
+  const outputs = getOutputs(id);
+  const outItems = outputs.map((o,i) => {
+    const hasUrl = o.url && o.url.trim();
+    const txt = hasUrl
+      ? `<a class="out-link" href="${escHtml(o.url)}" target="_blank" rel="noopener">${escHtml(o.text)}</a>`
+      : `<span>${escHtml(o.text)}</span>`;
+    const lBtn = `<button class="out-link-btn" onclick="toggleLinkRow('${id}',${i})" title="${hasUrl?'Editar link':'Añadir link'}">${hasUrl?'🔗':'＋🔗'}</button>`;
+    const lRow = `<div class="link-row" id="lr-${id}-${i}" style="display:none;">
+      <input class="link-input" id="li-${id}-${i}" placeholder="https://..." value="${escHtml(o.url||'')}">
+      <button class="link-save-btn" onclick="saveLink('${id}',${i})">✓</button>
+      ${hasUrl ? `<button class="link-rm-btn" onclick="removeLink('${id}',${i})">✕</button>` : ''}
+    </div>`;
+    return `<li class="out-item" style="flex-direction:column;align-items:flex-start;">
+      <div style="display:flex;align-items:center;gap:6px;width:100%;">
+        <span class="m-bullet" style="color:${c}">›</span>${txt}${lBtn}
+      </div>${lRow}</li>`;
+  }).join('');
+
+  document.getElementById('m-body').innerHTML = `
+    <div><div class="m-sec">Responsable</div><div class="m-resp">👤 ${escHtml(d.responsible)}</div></div>
+    <div><div class="m-sec">Entradas</div><ul class="m-list">${d.inputs.map(i=>`<li><span class="m-bullet" style="color:${c}">›</span>${escHtml(i)}</li>`).join('')}</ul></div>
+    <div><div class="m-sec">Flujo / Tareas</div><ul class="m-list">${d.flow.map((f,i)=>`<li><span class="m-bullet" style="color:#4a8fea;min-width:16px">${i+1}.</span>${escHtml(f)}</li>`).join('')}</ul></div>
+    ${(d.tools&&d.tools.length)?`<div><div class="m-sec">Herramientas</div><ul class="m-list">${d.tools.map(t=>`<li><span class="m-bullet" style="color:#9d6ff0">›</span>${escHtml(t)}</li>`).join('')}</ul></div>`:''}
+    <div><div class="m-sec">Salidas</div><ul class="m-list">${outItems}</ul></div>`;
+
+  // Show footer edit button
+  document.getElementById('m-footer').style.display = 'flex';
+}
+
+// ── Link helpers ─────────────────────────────────────────
+function toggleLinkRow(id, i) {
+  const row = document.getElementById(`lr-${id}-${i}`);
+  if (!row) return;
+  const isOpen = row.style.display !== 'none';
+  row.style.display = isOpen ? 'none' : 'flex';
+  if (!isOpen) document.getElementById(`li-${id}-${i}`)?.focus();
+}
+function saveLink(id, i) {
+  const url = document.getElementById(`li-${id}-${i}`).value.trim();
+  const outs = getOutputs(id);
+  outs[i].url = url;
+  data[id].outputs = outs;
+  renderModal(id);
+}
+function removeLink(id, i) {
+  const outs = getOutputs(id);
+  outs[i].url = '';
+  data[id].outputs = outs;
+  renderModal(id);
+}
+
+// ── EDIT mode — single form for all fields ───────────────
+function enterEditMode(id) {
+  const d = data[id]; if (!d) return;
+  const outsText = getOutputs(id).map(o => o.url ? `${o.text} | ${o.url}` : o.text).join('\n');
+
+  document.getElementById('m-body').innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div class="edit-field">
+        <label class="edit-label">Responsable</label>
+        <input class="edit-input" id="ef-responsible" value="${escHtml(d.responsible)}">
+      </div>
+      <div class="edit-field">
+        <label class="edit-label">Entradas <span class="edit-label-hint">— una por línea</span></label>
+        <textarea class="edit-area" id="ef-inputs" rows="4">${escHtml((d.inputs||[]).join('\n'))}</textarea>
+      </div>
+      <div class="edit-field">
+        <label class="edit-label">Flujo / Tareas <span class="edit-label-hint">— un paso por línea</span></label>
+        <textarea class="edit-area" id="ef-flow" rows="6">${escHtml((d.flow||[]).join('\n'))}</textarea>
+      </div>
+      <div class="edit-field">
+        <label class="edit-label">Herramientas <span class="edit-label-hint">— una por línea</span></label>
+        <textarea class="edit-area" id="ef-tools" rows="4">${escHtml((d.tools||[]).join('\n'))}</textarea>
+      </div>
+      <div class="edit-field">
+        <label class="edit-label">Salidas <span class="edit-label-hint">— una por línea · para links: Texto | https://url.com</span></label>
+        <textarea class="edit-area" id="ef-outputs" rows="4">${escHtml(outsText)}</textarea>
+      </div>
+    </div>`;
+
+  // Replace footer buttons
+  document.getElementById('m-footer').innerHTML = `
+    <div class="edit-form-actions">
+      <button class="edit-discard" onclick="discardEdit('${id}')">Cancelar</button>
+      <button class="edit-save" onclick="saveEdit('${id}')">✓ Guardar cambios</button>
+    </div>`;
+}
+
+function saveEdit(id) {
+  const d = data[id];
+  d.responsible = document.getElementById('ef-responsible').value.trim();
+  d.inputs  = document.getElementById('ef-inputs').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  d.flow    = document.getElementById('ef-flow').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  d.tools   = document.getElementById('ef-tools').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  d.outputs = document.getElementById('ef-outputs').value.split('\n').map(l => {
+    const t = l.trim(); if (!t) return null;
+    const p = t.indexOf(' | ');
+    return p > -1 ? {text:t.slice(0,p).trim(), url:t.slice(p+3).trim()} : {text:t, url:''};
+  }).filter(Boolean);
+  // Restore footer
+  document.getElementById('m-footer').innerHTML = `<button class="m-edit-main-btn" onclick="enterEditMode('${id}')">✏️ Editar</button>`;
+  renderModal(id);
+}
+
+function discardEdit(id) {
+  document.getElementById('m-footer').innerHTML = `<button class="m-edit-main-btn" onclick="enterEditMode('${id}')">✏️ Editar</button>`;
+  renderModal(id);
+}
+
+function openModal(id) {
+  currentModalId = id;
+  renderModal(id);
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').style.display = 'none';
+  currentModalId = null;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+let scale = 1;
+const canvas = document.getElementById('bpmn-canvas');
+function zoom(f) { scale = Math.min(Math.max(scale * f, 0.2), 2.5); canvas.style.transform = `scale(${scale})`; }
+function resetZoom() {
+  scale = 0.60; canvas.style.transform = `scale(${scale})`;
+  const w = document.getElementById('canvas-wrap'); w.scrollLeft = 0; w.scrollTop = 0;
+}
+window.addEventListener('load', resetZoom);
+
+const wrap = document.getElementById('canvas-wrap');
+let panning = false, panX, panY, scrollX, scrollY;
+wrap.addEventListener('mousedown', e => {
+  if (e.target.closest('.bpmn-task,.bpmn-gw,#modal-overlay')) return;
+  panning = true; panX = e.clientX; panY = e.clientY; scrollX = wrap.scrollLeft; scrollY = wrap.scrollTop; wrap.style.cursor = 'grabbing';
+});
+document.addEventListener('mousemove', e => { if (!panning) return; wrap.scrollLeft = scrollX - (e.clientX - panX); wrap.scrollTop = scrollY - (e.clientY - panY); });
+document.addEventListener('mouseup', () => { panning = false; wrap.style.cursor = 'grab'; });
+
+const tt = document.getElementById('tooltip'), ttText = document.getElementById('tt-text');
+document.querySelectorAll('.bpmn-task,.bpmn-gw').forEach(el => {
+  el.addEventListener('mouseenter', () => {
+    const id = el.getAttribute('onclick')?.match(/'(\w+)'/)?.[1];
+    const d = data[id]; if (!d) return;
+    ttText.textContent = 'Ver detalle: ' + d.title.substring(0, 50) + (d.title.length > 50 ? '…' : '');
+    tt.classList.add('show');
+  });
+  el.addEventListener('mousemove', e => { tt.style.left = (e.clientX + 14) + 'px'; tt.style.top = (e.clientY - 28) + 'px'; });
+  el.addEventListener('mouseleave', () => tt.classList.remove('show'));
+});
+</script>
+</body>
+</html>
